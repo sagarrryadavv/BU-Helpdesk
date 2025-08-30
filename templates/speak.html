@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barkatullah University Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/siriwave/dist/siriwave.umd.min.js"></script>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      touch-action: manipulation;
+      background-color: #0a192f;
+      /* Dark blue background */
+      overflow: hidden;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    @keyframes rotate-glow {
+      0% {
+        transform: translateX(-50%) rotate(-5deg);
+      }
+
+      50% {
+        transform: translateX(-50%) rotate(5deg);
+      }
+
+      100% {
+        transform: translateX(-50%) rotate(-5deg);
+      }
+    }
+
+    .glowing-arc {
+      position: absolute;
+      bottom: -50vh;
+      left: 50%;
+      width: 200vw;
+      height: 100vh;
+      border-radius: 100vw 100vw 0 0;
+      box-shadow: 0 0 150px rgba(79, 70, 229, 0.6),
+        inset 0 0 50px rgba(79, 70, 229, 0.4);
+      z-index: -1;
+      pointer-events: none;
+      animation: rotate-glow 15s linear infinite alternate;
+    }
+
+    .mic-button {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .mic-button:active {
+      transform: scale(1.1);
+    }
+
+    #waveform-container {
+      width: 100%;
+      height: 100px;
+      position: absolute;
+      bottom: 80px;
+      left: 0;
+    }
+
+    /* Scrollbar styling */
+    #transcript {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+    }
+
+    #transcript::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #transcript::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen">
+<p class="absolute bottom-12 text-sm text-gray-300">Press and hold to speak</p>
+
+  <div class="w-full max-w-sm mx-auto p-4 relative">
+    <div class="glass-card w-full h-[400px] p-6 flex flex-col items-center relative">
+
+      <div id="transcript"
+     class="text-2xl text-center text-white font-medium leading-relaxed h-48 w-full overflow-y-auto pr-2 mt-[1cm] mb-[1cm]">
+</div>
+
+
+      <div id="waveform-container"></div>
+
+      <button id="mic-button"
+        class="mic-button bg-white rounded-full w-20 h-20 flex items-center justify-center focus:outline-none shadow-lg absolute bottom-[-40px]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-800" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="glowing-arc"></div>
+  </div>
+
+  <script>
+    // --- Configuration ---
+    let GEMINI_API_KEY;
+    let systemInstruction;
+    let API_URL;
+
+    // --- DOM Elements ---
+    const micButton = document.getElementById('mic-button');
+    const transcriptEl = document.getElementById('transcript');
+    const waveformContainer = document.getElementById('waveform-container');
+
+    // --- Web Speech API Setup ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    let finalTranscript = '';
+    let isListening = false;
+    let chatHistory = [];
+    let defaultVoice = null;
+    let siriWave;
+    let typewriterInterval;
+
+    // --- Core Functions ---
+    async function fetchConfig() {
+        try {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            GEMINI_API_KEY = config.gemini_api_key;
+            systemInstruction = config.system_instruction;
+            API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        } catch (error) {
+            console.error('Failed to fetch config:', error);
+            transcriptEl.textContent = "Error loading configuration.";
+        }
+    }
+
+
+    function initWaveform() {
+      siriWave = new SiriWave({
+        container: waveformContainer,
+        width: 300,
+        height: 100,
+        style: 'ios9',
+        curveDefinition: [
+          { color: "FFFFFF", supportLine: true },
+          { color: "87CEEB" },
+          { color: "6495ED" },
+        ],
+      });
+      siriWave.stop();
+    }
+
+    function loadDefaultVoice() {
+      const voices = window.speechSynthesis.getVoices();
+      defaultVoice = voices.find(voice => voice.name === 'Google US English') || voices.find(voice => voice.lang === 'en-US');
+    }
+    window.speechSynthesis.onvoiceschanged = loadDefaultVoice;
+
+    function typewriter(text, element) {
+      clearInterval(typewriterInterval);
+      let i = 0;
+      const avgCharsPerSecond = 15;
+      const speed = 1000 / avgCharsPerSecond;
+      element.textContent = '';
+      typewriterInterval = setInterval(() => {
+        if (i < text.length) {
+          element.textContent += text.charAt(i);
+          element.scrollTop = element.scrollHeight; // auto-scroll down
+          i++;
+        } else {
+          clearInterval(typewriterInterval);
+        }
+      }, speed);
+    }
+
+    function speak(text) {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+
+      // **FIX:** Clean the text for speech synthesis, removing markdown characters.
+      const textForSpeech = text.replace(/[\*#]/g, ' ').replace(/\s+/g, ' ').trim();
+
+      const utterance = new SpeechSynthesisUtterance(textForSpeech);
+      if (defaultVoice) utterance.voice = defaultVoice;
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      utterance.onstart = () => {
+        siriWave.start();
+        // The typewriter will show the original text with its formatting.
+        typewriter(text, transcriptEl);
+      };
+
+      utterance.onend = () => {
+        siriWave.stop();
+        // The final displayed text will also be the original.
+        transcriptEl.textContent = text;
+        transcriptEl.scrollTop = transcriptEl.scrollHeight; // keep last line in view
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    async function getGeminiResponse(user_input) {
+      transcriptEl.textContent = '...';
+
+      chatHistory.push({ role: "user", parts: [{ text: user_input }] });
+
+      const payload = {
+        contents: chatHistory,
+        systemInstruction: { parts: [{ text: systemInstruction }] }
+      };
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`API request failed: ${errorData.error.message}`);
+        }
+
+        const result = await response.json();
+
+        if (result.candidates && result.candidates.length > 0) {
+          const assistantResponse = result.candidates[0].content.parts[0].text;
+          chatHistory.push({ role: "model", parts: [{ text: assistantResponse }] });
+          speak(assistantResponse);
+        } else {
+          speak("I received an empty response. Please try again.");
+        }
+
+      } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        speak("I'm having a little trouble connecting right now.");
+      }
+    }
+
+    // --- Speech Recognition Handlers ---
+    recognition.onstart = () => {
+      isListening = true;
+      transcriptEl.textContent = 'Listening...';
+      siriWave.start();
+      finalTranscript = '';
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      transcriptEl.textContent = finalTranscript + interimTranscript;
+      transcriptEl.scrollTop = transcriptEl.scrollHeight; // auto-scroll
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      siriWave.stop();
+      if (finalTranscript.trim()) {
+        getGeminiResponse(finalTranscript.trim());
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      isListening = false;
+      siriWave.stop();
+    };
+
+    // --- Button Events ---
+    const startListening = () => {
+      if (!isListening) {
+        window.speechSynthesis.cancel();
+        clearInterval(typewriterInterval);
+        recognition.start();
+      }
+    };
+
+    const stopListening = () => {
+      if (isListening) {
+        recognition.stop();
+      }
+    };
+
+    micButton.addEventListener('mousedown', startListening);
+    micButton.addEventListener('mouseup', stopListening);
+    micButton.addEventListener('mouseleave', stopListening);
+
+    micButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startListening();
+    });
+    micButton.addEventListener('touchend', stopListening);
+
+    // --- Initial Load ---
+    window.onload = async () => {
+      await fetchConfig();
+      loadDefaultVoice();
+      initWaveform();
+      setTimeout(() => {
+        speak("Hello! How can I help you with BU-related questions?");
+      }, 500);
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BU Helpdesk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="header">
+            <h1>BU Helpdesk</h1>
+        </div>
+
+        <div id="chat-box"></div>
+
+        <div class="input-area-wrapper">
+            <div class="input-area">
+                <textarea id="user-input" placeholder="Ask anything..." rows="1"></textarea>
+                <a href="/speak" class="mic-btn" aria-label="Use Microphone">
+                    <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12.5523 2 13 2.44772 13 3V21C13 21.5523 12.5523 22 12 22C11.4477 22 11 21.5523 11 21V3C11 2.44772 11.4477 2 12 2Z"></path><path d="M6 9C6.55228 9 7 9.44772 7 10V14C7 14.5523 6.55228 15 6 15C5.44772 15 5 14.5523 5 14V10C5 9.44772 5.44772 9 6 9Z"></path><path d="M18 9C18.5523 9 19 9.44772 19 10V14C19 14.5523 18.5523 15 18 15C17.4477 15 17 14.5523 17 14V10C17 9.44772 17.4477 9 18 9Z"></path></svg>
+                </a>
+                <button class="send-btn" id="send-button" aria-label="Send Message" style="display: none;">
+                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 11L12 6L17 11M12 18V7" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const micButton = document.querySelector('.mic-btn');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const welcomeMessage = "Hello! I'm your BU Helpdesk assistant. How can I assist you with information about Barkatullah University today?";
+            addMessage('Bot', welcomeMessage);
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        userInput.addEventListener('input', () => {
+            userInput.style.height = 'auto';
+            userInput.style.height = `${userInput.scrollHeight}px`;
+            if (userInput.value.trim().length > 0) {
+                micButton.style.display = 'none';
+                sendButton.style.display = 'flex';
+            } else {
+                micButton.style.display = 'flex';
+                sendButton.style.display = 'none';
+            }
+        });
+
+        function showTypingIndicator() {
+            if (document.querySelector('.typing-indicator')) return;
+            const indicatorWrapper = document.createElement('div');
+            indicatorWrapper.className = 'message-wrapper bot typing-indicator';
+            indicatorWrapper.innerHTML = `
+                <div class="bot-message">
+                    <div class="typing-dots"><span></span><span></span><span></span></div>
+                </div>`;
+            chatBox.appendChild(indicatorWrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const indicator = document.querySelector('.typing-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage('You', message);
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            micButton.style.display = 'flex';
+            sendButton.style.display = 'none';
+            
+            showTypingIndicator();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message }),
+                });
+
+                hideTypingIndicator();
+                const data = await response.json();
+                const responseText = data.error || data.response;
+                addMessage('Bot', responseText);
+
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage('Bot', 'Sorry, something went wrong. Please try again.');
+                console.error("Fetch error:", error);
+            }
+        }
+
+        function addMessage(sender, text) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `message-wrapper ${sender.toLowerCase()}`;
+            
+            const textWithBreaks = text.replace(/\n/g, '<br>');
+
+            if (sender === 'You') {
+                messageWrapper.innerHTML = `<div class="user-message-box">${textWithBreaks}</div>`;
+            } else {
+                messageWrapper.innerHTML = `
+                    <div class="bot-message">
+                        <div class="message-text">${textWithBreaks}</div>
+                        <div class="message-actions">
+                            <button class="action-btn" title="Copy" onclick="copyMessage(this)">
+                               <svg fill="#000000" height="20px" width="20px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 22.883 22.883" xml:space="preserve"><g><g><path d="M15.528,0H2.946C1.32,0,0,1.32,0,2.946v14.026c0,0.414,0.336,0.75,0.75,0.75s0.75-0.336,0.75-0.75V2.946 C1.5,2.149,2.149,1.5,2.946,1.5h12.582c0.414,0,0.75-0.336,0.75-0.75S15.942,0,15.528,0z"/><path d="M20.695,5.105H7.355c-1.626,0-2.946,1.32-2.946,2.946v11.886c0,1.626,1.32,2.946,2.946,2.946h13.34 c1.626,0,2.946-1.32,2.946-2.946V8.051C23.641,6.425,22.321,5.105,20.695,5.105z M22.141,19.938 c0,0.8-0.649,1.446-1.446,1.446H7.355c-0.8,0-1.446-0.649-1.446-1.446V8.051c0-0.8,0.649-1.446,1.446-1.446h13.34 c0.8,0,1.446,0.649,1.446,1.446V19.938z"/></g></g></svg>
+                            </button>
+                            <button class="action-btn" title="Share" onclick="shareMessage(this)">
+                                <svg fill="#000000" height="20px" width="20px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 33.641 33.641" xml:space="preserve"><g><g><path d="M25.568,21.956c-1.344,0-2.582,0.52-3.535,1.383l-9.876-5.409c0.089-0.293,0.141-0.596,0.141-0.913 c0-0.32-0.051-0.622-0.142-0.915l9.893-5.418c0.953,0.861,2.188,1.379,3.518,1.379c2.945,0,5.332-2.387,5.332-5.332 c0-2.944-2.387-5.332-5.332-5.332c-2.945,0-5.332,2.388-5.332,5.332c0,0.318,0.051,0.619,0.142,0.914l-9.894,5.418 c-0.952-0.86-2.189-1.378-3.518-1.378C4.021,12.043,0,16.064,0,19.743c0,3.678,4.021,6.664,8.983,6.664 c1.329,0,2.565-0.518,3.518-1.378l9.894,5.417c-0.092,0.295-0.142,0.596-0.142,0.914c0,2.945,2.387,5.332,5.332,5.332 c2.945,0,5.332-2.387,5.332-5.332C30.9,24.342,28.513,21.956,25.568,21.956z"/></g></g></svg>
+                            </button>
+                        </div>
+                    </div>`;
+            }
+            chatBox.appendChild(messageWrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function copyMessage(button) {
+            const text = button.closest('.bot-message').querySelector('.message-text').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalTitle = button.title;
+                button.title = 'Copied!';
+                setTimeout(() => { button.title = originalTitle; }, 2000);
+            }).catch(err => console.error('Failed to copy text: ', err));
+        }
+
+        function shareMessage(button) {
+            const text = button.closest('.bot-message').querySelector('.message-text').innerText;
+            if (navigator.share) {
+                navigator.share({ text }).catch(err => console.error("Share failed:", err));
+            } else {
+                alert("Sharing is not supported on this browser.");
+            }
+        }
+    </script>
+</body>
+</html>
