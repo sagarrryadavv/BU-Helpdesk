@@ -2,9 +2,6 @@
 
 A sophisticated, conversational AI assistant for Barkatullah University, designed to provide instant and accurate information to students, applicants, and staff. This chatbot features both a text-based interface and a hands-free, voice-activated mode.
 
-![Demo GIF or Screenshot](https://i.imgur.com/YourDemo.gif)
-*(Optional: Replace the link above with a GIF or screenshot of the chatbot in action.)*
-
 ---
 
 ## ✨ Features
@@ -36,3 +33,37 @@ Follow these steps to get the BU Helpdesk Bot running on your local machine.
 ```bash
 git clone [https://github.com/your-username/bu-helpdesk-bot.git](https://github.com/your-username/bu-helpdesk-bot.git)
 cd bu-helpdesk-bot
+```
+### 3. Set Up Environment & Install Dependencies
+
+```bash
+# Create and activate a virtual environment (Windows)
+python -m venv venv
+venv\Scripts\activate
+
+# Install required packages
+pip install -r requirements.txt
+```
+### 4. Configure API Key (❗Crucial Step)
+Create a new file named .env in the project's root directory. Inside this file, add your Gemini API key.
+
+
+```bash
+
+GEMINI_API_KEY=REPLACE_WITH_YOUR_GEMINI_API_KEY
+```
+
+Important: You must replace REPLACE_WITH_YOUR_GEMINI_API_KEY with your actual key. The application will not work without it.
+
+### 5. Run the Application
+Start the local server with the following command:
+```bash
+
+python app.py
+```
+Text Chat: Access at http://127.0.0.1:5000
+
+Voice Chat: Access at http://127.0.0.1:5000/speak
+
+
+
