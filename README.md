@@ -1,8 +1,23 @@
+
 # BU Helpdesk Bot
 
 A sophisticated, conversational AI assistant for Barkatullah University, designed to provide instant and accurate information to students, applicants, and staff. This chatbot features both a text-based interface and a hands-free, voice-activated mode.
 
 ---
+
+## 📷 Preview
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/cecdfeff-62c9-4a7f-b0c5-debf97590943" alt="BU Helpdesk Bot Preview" width="600" />
+</div>
+
+<div align="center" style="margin-top:20px;">
+  <a href="https://sagarryadvav.pythonanywhere.com/" target="_blank" style="text-decoration:none;">
+    <button style="background-color:#4CAF50;color:white;padding:15px 30px;font-size:18px;border:none;border-radius:8px;cursor:pointer;">
+      Try Here / Visit Website
+    </button>
+  </a>
+</div>
 
 ## ✨ Features
 
