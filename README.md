@@ -30,7 +30,7 @@ A sophisticated, conversational AI assistant for Barkatullah University, designe
 ## 🛠️ Technologies Used
 
 * **Backend**: Python, Flask
-* **AI Model**: Google Gemini 1.5 Flash
+* **AI Model**: Google gemini-2.5-flash
 * **Frontend**: HTML, CSS, JavaScript
 * **Web Speech API**: For voice recognition and speech synthesis in the voice interface.
 
